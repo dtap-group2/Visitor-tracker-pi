@@ -14,7 +14,7 @@ ie = IECore()
 # If the detection is at least this sure it's a person, increase the counter
 CONFIDENCE = 0.35
 
-MODEL_LOCATION = "./person-detection-0200.xml"
+MODEL_LOCATION = "../models/person-detection-0200.xml"
 DATA_PATH = "../training_data/video_1647424766.4553282.h264"
 # DATA_PATH = "../training_data/station.h264"
 
