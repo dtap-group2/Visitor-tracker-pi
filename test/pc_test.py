@@ -1,21 +1,24 @@
-#File used to test opencv on computers
+# File used to test opencv on computers
 
 import json
 import cv2
 import numpy as np
 import json
 import datetime
+import requests
 
 
 from openvino.inference_engine import IECore
 
 ie = IECore()
 
+SERVER_URL = "http://localhost:3000/tracker/update-data"
+
 # If the detection is at least this sure it's a person, increase the counter
 CONFIDENCE = 0.35
 
 MODEL_LOCATION = "../models/person-detection-0200.xml"
-DATA_PATH = "../training_data/video_1647424766.4553282.h264"
+DATA_PATH = "../training_data/video_1647424961.4364793-converted.mp4"
 # DATA_PATH = "../training_data/station.h264"
 
 net = ie.read_network(model=MODEL_LOCATION)
@@ -42,19 +45,19 @@ while True:
     success, frame = cap.read()
 
     if success:
-        #reads height, width and colors(rgb default 3)
+        # reads height, width and colors(rgb default 3)
         h_orig, w_orig, c_orig = frame.shape
 
         img_resized = cv2.resize(frame, (H, W))
         input_data = np.expand_dims(np.transpose(img_resized, (2, 0, 1)), 0)
 
-        #detect people maybe
+        # detect people maybe
         result = exec_net.infer({input_name: input_data})
 
         output = result['detection_out']
         datarows = output[0][0]
 
-        np.set_printoptions(threshold=np.inf) 
+        np.set_printoptions(threshold=np.inf)
         datarows = datarows[~np.all(datarows == 0, axis=1)]
 
         # print(datarows.shape)
@@ -78,7 +81,7 @@ while True:
                 bottomn_right_y = int(bottom_right_y_float * h_orig)
 
                 cv2.rectangle(frame, (top_left_x, top_left_y),
-                            (bottomn_right_x, bottomn_right_y), (255, 0, 0), 2)
+                              (bottomn_right_x, bottomn_right_y), (255, 0, 0), 2)
                 text_loc = ((bottomn_right_x + top_left_x)//2,
                             bottomn_right_y)
                 cv2.putText(frame,
@@ -86,13 +89,13 @@ while True:
                             text_loc,
                             fontFace=cv2.FONT_HERSHEY_PLAIN,
                             fontScale=2,
-                            color=(0,255,0),
+                            color=(0, 255, 0),
                             thickness=2,
                             lineType=cv2.LINE_AA)
         cv2.imshow("Frame", frame)
-        data = json.dumps({"time":datetime.datetime.now().isoformat(), 
-                            "total_count":count})
-        
+        frame_data = {"timeFrame": datetime.datetime.now().timestamp(),
+                      "totalCount": count}
+        requests.post(SERVER_URL, json=frame_data)
         key = cv2.waitKey(100)
         if key == ord('q'):
             break
