@@ -20,6 +20,7 @@ CONFIDENCE = 0.35
 MODEL_LOCATION = "../models/person-detection-0200.xml"
 DATA_PATH = 0
 
+
 def main():
     ie = IECore()
 
@@ -43,19 +44,20 @@ def main():
         success, frame = cap.read()
 
         if success:
-            #reads height, width and colors(rgb default 3)
+            # reads height, width and colors(rgb default 3)
             h_orig, w_orig, c_orig = frame.shape
 
             img_resized = cv2.resize(frame, (H, W))
-            input_data = np.expand_dims(np.transpose(img_resized, (2, 0, 1)), 0)
+            input_data = np.expand_dims(
+                np.transpose(img_resized, (2, 0, 1)), 0)
 
-            #detect people using the model and intel stick
+            # detect people using the model and intel stick
             result = exec_net.infer({input_name: input_data})
 
             output = result['detection_out']
             datarows = output[0][0]
 
-            np.set_printoptions(threshold=np.inf) 
+            np.set_printoptions(threshold=np.inf)
             datarows = datarows[~np.all(datarows == 0, axis=1)]
 
             count = 0
@@ -76,7 +78,7 @@ def main():
                         bottomn_right_y = int(bottom_right_y_float * h_orig)
 
                         cv2.rectangle(frame, (top_left_x, top_left_y),
-                                    (bottomn_right_x, bottomn_right_y), (255, 0, 0), 2)
+                                      (bottomn_right_x, bottomn_right_y), (255, 0, 0), 2)
                         text_loc = ((bottomn_right_x + top_left_x)//2,
                                     bottomn_right_y)
                         cv2.putText(frame,
@@ -84,20 +86,22 @@ def main():
                                     text_loc,
                                     fontFace=cv2.FONT_HERSHEY_PLAIN,
                                     fontScale=2,
-                                    color=(0,255,0),
+                                    color=(0, 255, 0),
                                     thickness=2,
                                     lineType=cv2.LINE_AA)
             if SHOW_VIDEO:
                 cv2.imshow("Frame", frame)
 
             # Send data to server
-            frame_data = json.dumps({"time":datetime.datetime.now().isoformat(), 
-                                "total_count":count})
-            requests.post(SERVER_URL,data=frame_data)
+            frame_data = {"timeFrame": datetime.datetime.now().timestamp(),
+                          "totalCount": count}
+            requests.post(SERVER_URL, json=frame_data)
             key = cv2.waitKey(100)
             if key == ord('q'):
                 break
         else:
             break
+
+
 if __name__ == "__main__":
     main()
