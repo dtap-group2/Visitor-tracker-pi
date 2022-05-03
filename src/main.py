@@ -4,6 +4,8 @@ import numpy as np
 import json
 import datetime
 import requests
+import os
+from pathlib import Path
 
 
 from openvino.inference_engine import IECore
@@ -12,13 +14,18 @@ SHOW_VIDEO = False
 
 # Set to MYRIAD on the Pi, CPU for regular pc testing
 DEVICE_NAME = "MYRIAD"
-SERVER_URL = "http://localhost:3000/tracker/update-data"
+# SERVER_URL = "http://localhost:3000/tracker/update-data"
 
 # If the detection is at least this sure it's a person, increase the counter
 CONFIDENCE = 0.35
 
-MODEL_LOCATION = "../models/person-detection-0200.xml"
+DETECTION_0200 = "/models/person-detection-0200.xml"
 DATA_PATH = 0
+
+
+FOLDER_PATH = Path(os.path.dirname(os.path.abspath(__file__))).parent.absolute()
+DATA_PATH = str(FOLDER_PATH.parent) + "/training_data/video_1647424766.4553282.h264"
+MODEL_LOCATION = str(FOLDER_PATH)+DETECTION_0200
 
 def main():
     ie = IECore()
@@ -36,9 +43,8 @@ def main():
     exec_net = ie.load_network(network=MODEL_LOCATION, device_name=DEVICE_NAME)
 
     N, C, H, W = net.input_info[input_name].tensor_desc.dims
-
+    
     cap = cv2.VideoCapture(DATA_PATH)
-
     while True:
         success, frame = cap.read()
 
@@ -93,7 +99,7 @@ def main():
             # Send data to server
             frame_data = json.dumps({"time":datetime.datetime.now().isoformat(), 
                                 "total_count":count})
-            requests.post(SERVER_URL,data=frame_data)
+            # requests.post(SERVER_URL,data=frame_data)
             key = cv2.waitKey(100)
             if key == ord('q'):
                 break
