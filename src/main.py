@@ -25,10 +25,14 @@ def build_argparser():
 
     parser.add_argument("-o", "--output", type=bool, default=SHOW_VIDEO,
                         help="Enable video output")
+    parser.add_argument("-s","--server",required=False,type=str,
+                        default=SERVER_URL,
+                        help="Server address to send data to")
     return parser
 
 def main():
     args = build_argparser().parse_args()
     detect(args)
+    
 if __name__ == "__main__":
     main()
