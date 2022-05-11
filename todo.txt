@@ -1,8 +1,8 @@
-1. Implement polygon subregion detection
-2. Get and Update subregion coundaries
-3. Send an image of the live feed to the front end(with no people?)
-4. Calculate average of a minute? and save it to something
+1. Implement polygon subregion detection (mustafa)
+2. Get and Update subregion coundaries from database (mustafa)
+3. Send an image of the live feed to the front end(with no people?)(tuan)
+4. Calculate average of thirty seconds? and save it to something (tuan)
     4.5 Send that something to the database every 30 minutes?
-5. Document the code, add instructions
+5. Document the code, add instructions (tuan)
 Maybe:
     -   Change the detection model
