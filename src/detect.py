@@ -7,14 +7,18 @@ import requests
 from threading import Thread
 from openvino.inference_engine import IECore
 
-# Frame duration in seconds
-FRAME_DURATION = 1/4
-
-TIME_OUT = 10
-
 # NORMALIZED boundaries (from 0 to 1.0)
 BOUNDARIES = {"Bound 1": ((0.1,0.2),(0.2,0.3)),"Bound 2": ((0.5,0.6),(0.2,0.3)),
     "Bound 3": ((0.1,0.2),(0.8,0.9)),"Bound 4": ((0.45,0.7),(0.6,0.8))}
+
+# Structure of m1_data:
+#   m1_data = {"total": [0],
+#              "regions":{
+#                           "Boundary name 1": count1,
+#                           "Boundary name 2": count2,
+#                           ...
+#                        }
+#              }
 
 class Camera():
     def __init__(self, source):
@@ -47,14 +51,9 @@ class Camera():
         self.running = False
         self.thread.join()
 
-def printCounts(total_count,region_count):
-    print("Total count {}",total_count)
-    for name, count in region_count.items():
-        print("{} : {}".format(name, count))
-
 def checkRegions(point: tuple, region_count: dict, BOUNDARIES: dict):
     for name, coord in BOUNDARIES.items():
-        print(name)
+        # print(name)
         AM_AB = np.dot(point, coord[0])
         AB_AB = np.dot(coord[0], coord[0])
         AM_AD = np.dot(point, coord[1])
@@ -83,9 +82,20 @@ def detect(args):
     cap = Camera(args.input)
     # cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 
+    # Frame duration in seconds
+    FRAME_DURATION = 1
+
+    # OpenCV detection time out in seconds
+    TIME_OUT = 10
+
+    BUFFERED = False
+    BUFFER_FILE = "data.json"
+
+
+    # Time interval between data sends to server in seconds
+    SEND_INTERVAL = 5
+
     if args.input != 0:
-        global TIME_OUT
-        global FRAME_DURATION
         TIME_OUT = 0
 
         # Note the original video frame rate while testing
@@ -94,12 +104,23 @@ def detect(args):
     timeout_clock = 0
     prev = 0
     time_elapsed = 0
+
+
+    # Store data
+    m1_data = {"total": [0], "regions":{}}
+
+    # Timer for resend interval
+    m1_timer = time.time()
+
+    # contains time before next time this sends data to server
+    # and the number of sending attempts
+    resend_counter = [SEND_INTERVAL,0]
     while cap.isRunning():
         time_elapsed = time.time() - prev
+        
         if time_elapsed > FRAME_DURATION:
             prev = time.time()
             success, frame = cap.read()
-            total_count = 0
             region_count = {}
             if success:
                 #reads height, width and colors(rgb default 3)
@@ -119,10 +140,10 @@ def detect(args):
                 datarows = datarows[~np.all(datarows == 0, axis=1)]
 
                 
-
+                count = 0
                 for row in datarows:
                     if row[2] > args.confidence:
-                        total_count += 1
+                        count += 1
                         # print(row)
 
                         #These coordinates are NORMALIZED from 0 to 1.0
@@ -153,28 +174,66 @@ def detect(args):
                                         color=(0,255,0),
                                         thickness=2,
                                         lineType=cv2.LINE_AA)
+                m1_data["total"].append(count)
                 if args.output:
                     cv2.imshow("Frame", frame)
-                    print("{} - {}".format(total_count, str(datetime.now().isoformat())))
+                    # print("{} - {}"
+                    #     .format(m1_data["total"],
+                    #             str(datetime.now().isoformat())))
 
                 # Send data to server
-                if args.server != "":
-                    frame_data = json.dumps({"time":datetime.now().isoformat(), 
-                                        "total_count":total_count})
-                    requests.post(args.server,data=frame_data)
+                if time.time() - m1_timer > resend_counter[0]:
+                    for data in m1_data["regions"].items():
+                        m1_data["regions"][data] = np.ceil(np.mean(
+                            m1_data["regions"][data], dtype=np.int)
+                            ,dtype=np.int)
+                    
+                    # If there is buffered data in data.json, try to send it
+                    # if it succeeded, wipe data.json
+                    if BUFFERED:
+                        with open(BUFFER_FILE, 'w', encoding='utf-8') as f:
+                            buffer_status = requests.post(args.server,
+                                                json=json.dumps(json.load(f)))
+                            if buffer_status.status_code == 200:
+                                f.truncate(0)
+                                BUFFERED = False
+
+                    
+                    post_status = requests.post(args.server,
+                                        json=json.dumps(m1_data),
+                                        timeout=5)
+
+                    # Checks if Post requests succeeded,
+                    # if not, set update interval to 0 and
+                    # increase resend counter  
+                    # If resend counter is 10, dumps dicitonary to data.json
+                    if args.server != "" and post_status.status_code == 200:
+                        m1_data = {"total": [0], "regions":{}}
+                        resend_counter = [SEND_INTERVAL,0]
+                    else:
+                        if resend_counter[1] < 10:
+                            resend_counter[0] = 0
+                            resend_counter[1] += 1
+                        else:
+                            with open(BUFFER_FILE, 'w', encoding='utf-8') as f:
+                                json.dump(m1_data, f,
+                                    ensure_ascii=False, indent=4)
+                                
+                                m1_data = {"total": [0], "regions":{}}
+                                resend_counter = [SEND_INTERVAL,0]
+                                BUFFERED = True
 
                 key = cv2.waitKey(100)
                 if key == ord('q'):
                     cap.stop()
                     cv2.destroyAllWindows()
-                    printCounts(total_count,region_count)
+                    # printCounts(total,region_count)
                     break
             else:
                 if timeout_clock != 0 and time.time()-timeout_clock>TIME_OUT:
                     cap.stop()
                     cv2.destroyAllWindows()
-                    printCounts(total_count,region_count)
+                    # printCounts(total,region_count)
                     break
                 else:
                     timeout_clock = time.time()
-                

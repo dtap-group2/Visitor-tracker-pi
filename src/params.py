@@ -41,6 +41,6 @@ DETECTION_0200 = "/models/person-detection-0200.xml"
 FOLDER_PATH = Path(dirname(abspath(__file__))).parent.absolute()
 
 DATA_PATH = str(FOLDER_PATH.parent) + "/training_data/video_1647424766.4553282.h264"
-DATA_PATH = 0
+# DATA_PATH = 0
 
 MODEL_PATH = str(FOLDER_PATH)+DETECTION_0200
