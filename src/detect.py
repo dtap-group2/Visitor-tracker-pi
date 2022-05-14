@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import json
-from datetime import datetime
 import time
 import requests
 from threading import Thread
@@ -12,12 +11,16 @@ BOUNDARIES = {"Bound 1": ((0.1,0.2),(0.2,0.3)),"Bound 2": ((0.5,0.6),(0.2,0.3)),
     "Bound 3": ((0.1,0.2),(0.8,0.9)),"Bound 4": ((0.45,0.7),(0.6,0.8))}
 
 # Structure of m1_data:
-#   m1_data = {"total": [0],
-#              "regions":{
-#                           "Boundary name 1": count1,
-#                           "Boundary name 2": count2,
-#                           ...
-#                        }
+#   m1_data = {
+#              "string of utc time in seconds":
+#                 {
+#                 "total": [0],
+#                 "regions":{
+#                             "Boundary name 1": count1,
+#                             "Boundary name 2": count2,
+#                             ...
+#                         }
+#                  }
 #              }
 
 class Camera():
@@ -93,7 +96,7 @@ def detect(args):
 
 
     # Time interval between data sends to server in seconds
-    SEND_INTERVAL = 5
+    SEND_INTERVAL = 0
 
     if args.input != 0:
         TIME_OUT = 0
@@ -107,14 +110,14 @@ def detect(args):
 
 
     # Store data
-    m1_data = {"total": [0], "regions":{}}
+    m1_data = {time.time():{"total": [0], "regions":{}}}
+    buffer_data = {}
 
     # Timer for resend interval
     m1_timer = time.time()
 
     # contains time before next time this sends data to server
-    # and the number of sending attempts
-    resend_counter = [SEND_INTERVAL,0]
+    resend_counter = SEND_INTERVAL
     while cap.isRunning():
         time_elapsed = time.time() - prev
         
@@ -139,7 +142,6 @@ def detect(args):
                 np.set_printoptions(threshold=np.inf) 
                 datarows = datarows[~np.all(datarows == 0, axis=1)]
 
-                
                 count = 0
                 for row in datarows:
                     if row[2] > args.confidence:
@@ -174,54 +176,66 @@ def detect(args):
                                         color=(0,255,0),
                                         thickness=2,
                                         lineType=cv2.LINE_AA)
-                m1_data["total"].append(count)
+                for data in m1_data.values():
+                    data["total"].append(count)
                 if args.output:
                     cv2.imshow("Frame", frame)
                     # print("{} - {}"
                     #     .format(m1_data["total"],
                     #             str(datetime.now().isoformat())))
-
                 # Send data to server
-                if time.time() - m1_timer > resend_counter[0]:
-                    for data in m1_data["regions"].items():
-                        m1_data["regions"][data] = np.ceil(np.mean(
-                            m1_data["regions"][data], dtype=np.int)
-                            ,dtype=np.int)
+                if time.time() - m1_timer > resend_counter:
+
+                    for data_entries in m1_data.values():
+                        data_entries["total"] = int(np.ceil(np.mean(
+                                data_entries["total"], dtype=np.int)))
+
+                        for data in data_entries["regions"].items():
+                            data_entries["regions"][data] = np.ceil(np.mean(
+                                data_entries["regions"][data], dtype=np.int)
+                                ,dtype=np.int)
                     
                     # If there is buffered data in data.json, try to send it
                     # if it succeeded, wipe data.json
-                    if BUFFERED:
-                        with open(BUFFER_FILE, 'w', encoding='utf-8') as f:
-                            buffer_status = requests.post(args.server,
-                                                json=json.dumps(json.load(f)))
-                            if buffer_status.status_code == 200:
-                                f.truncate(0)
-                                BUFFERED = False
-
-                    
+                    # if BUFFERED:
+                    #     with open(BUFFER_FILE, 'w+', encoding='utf-8') as f:
+                    #         buffer_status = requests.post(args.server,
+                    #                             json=json.dumps(json.load(f)))
+                    #         if buffer_status.status_code == 200:
+                    #             f.truncate(0)
+                    #             BUFFERED = False
+                    if len(buffer_data) > 0:
+                        buffer_status = requests.post(args.server,
+                                                data=json.dumps(buffer_data),
+                                                timeout=0.5)
+                        if buffer_status.status_code == 200:
+                            buffer_data = {}
+                    print(json.dumps(m1_data))
                     post_status = requests.post(args.server,
-                                        json=json.dumps(m1_data),
-                                        timeout=5)
-
+                                        data=json.dumps(m1_data),
+                                        timeout=0.5)
+                    print("post_status {}".format(post_status.status_code))
                     # Checks if Post requests succeeded,
                     # if not, set update interval to 0 and
                     # increase resend counter  
                     # If resend counter is 10, dumps dicitonary to data.json
                     if args.server != "" and post_status.status_code == 200:
-                        m1_data = {"total": [0], "regions":{}}
-                        resend_counter = [SEND_INTERVAL,0]
+                        m1_data = {time.time():{"total": [0], "regions":{}}}
+                        resend_counter = SEND_INTERVAL
                     else:
-                        if resend_counter[1] < 10:
-                            resend_counter[0] = 0
-                            resend_counter[1] += 1
-                        else:
-                            with open(BUFFER_FILE, 'w', encoding='utf-8') as f:
-                                json.dump(m1_data, f,
-                                    ensure_ascii=False, indent=4)
-                                
-                                m1_data = {"total": [0], "regions":{}}
-                                resend_counter = [SEND_INTERVAL,0]
-                                BUFFERED = True
+                        buffer_data.update(m1_data)
+                        resend_counter = 0
+                        m1_data = {time.time():{"total": [0], "regions":{}}}
+                    # else:
+                    #     with open(BUFFER_FILE, 'w+', encoding='utf-8') as f:
+                    #         temp = json.load(f)
+                    #         print(type(temp))
+                    #         temp.update(m1_data)
+                    #         json.dump(temp, f)
+                            
+                    #         m1_data = {time.time():{"total": [0], "regions":{}}}
+                    #         resend_counter = SEND_INTERVAL
+                    #         BUFFERED = True
 
                 key = cv2.waitKey(100)
                 if key == ord('q'):

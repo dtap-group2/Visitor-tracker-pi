@@ -2,7 +2,12 @@
 Code for DTAP 2022 visitor tracker Raspberry Pi
 
 # Notes
-Run src/main.py to start the program
+Cd to the folder
+Run python3 src/main.py to start the program (on windows use python instead of python3)
+
+currenty data is buffered to a dictionary not data.json
+
+The detection doesn't send any information about the regions to server yet
 
 There are no functions to check if boundaries have the same name yet
 
