@@ -5,21 +5,26 @@ import time
 import requests
 from threading import Thread
 from openvino.inference_engine import IECore
+from polygon_check import is_inside
 
 # NORMALIZED boundaries (from 0 to 1.0)
-BOUNDARIES = {"Bound 1": ((0.1,0.2),(0.2,0.3)),"Bound 2": ((0.5,0.6),(0.2,0.3)),
-    "Bound 3": ((0.1,0.2),(0.8,0.9)),"Bound 4": ((0.45,0.7),(0.6,0.8))}
+BOUNDARIES = {"Bound 1": [(0.06606606606606606, 0.9579158316633266),
+                        (0.042042042042042045, 0.5891783567134269),
+                        (0.15615615615615616, 0.5390781563126252),
+                        (0.26576576576576577, 0.5470941883767535),
+                        (0.32432432432432434, 0.44288577154308617),
+                        (0.4624624624624625, 0.46693386773547096), 
+                        (0.5495495495495496, 0.5150300601202404),
+                        (0.5495495495495496, 0.6452905811623246),
+                        (0.7762762762762763, 0.7294589178356713)]}
 
 # Structure of m1_data:
 #   m1_data = {
 #              "string of utc time in seconds":
 #                 {
-#                 "total": [0],
-#                 "regions":{
-#                             "Boundary name 1": count1,
-#                             "Boundary name 2": count2,
-#                             ...
-#                         }
+#                   "Boundary name 1": count1,
+#                   "Boundary name 2": count2,
+#                   ...
 #                  }
 #              }
 
@@ -54,29 +59,19 @@ class Camera():
         self.running = False
         self.thread.join()
 
-def checkRegions(point: tuple, region_count: dict, BOUNDARIES: dict):
+def checkRegions(point: tuple, frame_data: dict, BOUNDARIES: dict):
+    # region_count = frame_data[next(iter(frame_data))]
     for name, coord in BOUNDARIES.items():
-        # print(name)
-        AM_AB = np.dot(point, coord[0])
-        AB_AB = np.dot(coord[0], coord[0])
-        AM_AD = np.dot(point, coord[1])
-        AD_AD = np.dot(coord[1], coord[1])
-        if (0 < AM_AB and AM_AB < AB_AB) and (0 < AM_AD and AM_AD < AD_AD):
-            if name not in region_count.keys():
-                region_count[name] = 1
+        if (is_inside(points =coord,p=point)):
+            if name not in frame_data.keys():
+                frame_data[name] = 1
             else:
-                region_count[name] += 1
+                frame_data[name] += 1
 
 def detect(args):
     ie = IECore()
     net = ie.read_network(model=args.model)
     input_name = next(iter(net.input_info))
-
-    for name, info in net.outputs.items():
-        print("\tname: {}".format(name))
-        print("\tshape: {}".format(info.shape))
-        print("\tlayout: {}".format(info.layout))
-        print("\tprecision: {}\n".format(info.precision))
 
     exec_net = ie.load_network(network=args.model, device_name=args.device)
 
@@ -96,7 +91,7 @@ def detect(args):
 
 
     # Time interval between data sends to server in seconds
-    SEND_INTERVAL = 0
+    SEND_INTERVAL = 1
 
     if args.input != 0:
         TIME_OUT = 0
@@ -110,21 +105,23 @@ def detect(args):
 
 
     # Store data
-    m1_data = {time.time():{"total": [0], "regions":{}}}
-    buffer_data = {}
+    current_time = time.time()
+    m1_data = [current_time,{}]
+    buffer_data = []
 
     # Timer for resend interval
-    m1_timer = time.time()
+    m1_timer = current_time
 
     # contains time before next time this sends data to server
     resend_counter = SEND_INTERVAL
+
+    frame_data = {}
     while cap.isRunning():
         time_elapsed = time.time() - prev
         
         if time_elapsed > FRAME_DURATION:
             prev = time.time()
             success, frame = cap.read()
-            region_count = {}
             if success:
                 #reads height, width and colors(rgb default 3)
 
@@ -157,8 +154,9 @@ def detect(args):
                         norm_center = ((top_left_x_f+bottom_right_x_f)/2,
                                 (top_left_y_f+bottom_right_y_f)/2)
 
-                        checkRegions(norm_center, region_count, BOUNDARIES)
+                        checkRegions(norm_center, frame_data, BOUNDARIES)
 
+                        # checks if the user need to dislay video output
                         if args.output:
                             top_left_x = int(row[3] * width)
                             top_left_y = int(row[4] * height)
@@ -176,25 +174,27 @@ def detect(args):
                                         color=(0,255,0),
                                         thickness=2,
                                         lineType=cv2.LINE_AA)
-                for data in m1_data.values():
-                    data["total"].append(count)
                 if args.output:
                     cv2.imshow("Frame", frame)
                     # print("{} - {}"
                     #     .format(m1_data["total"],
                     #             str(datetime.now().isoformat())))
                 # Send data to server
-                if time.time() - m1_timer > resend_counter:
-
-                    for data_entries in m1_data.values():
-                        data_entries["total"] = int(np.ceil(np.mean(
-                                data_entries["total"], dtype=np.int)))
-
-                        for data in data_entries["regions"].items():
-                            data_entries["regions"][data] = np.ceil(np.mean(
-                                data_entries["regions"][data], dtype=np.int)
-                                ,dtype=np.int)
-                    
+                # print("here: {}".format(frame_data.values()))
+                temp = m1_data[1]
+                for name, value in frame_data.items():
+                    if name in temp.keys():
+                        temp[name].append(value)
+                    else:
+                        temp[name] = [value]
+                curr = time.time()
+                temp = {}
+                if curr - m1_timer > resend_counter:
+                    m1_timer = curr
+                    for name, count in m1_data[1].items():
+                        temp[name] = max(count,)
+                    for name, count in temp.items():
+                        m1_data[1][name] = count
                     # If there is buffered data in data.json, try to send it
                     # if it succeeded, wipe data.json
                     # if BUFFERED:
@@ -206,26 +206,27 @@ def detect(args):
                     #             BUFFERED = False
                     if len(buffer_data) > 0:
                         buffer_status = requests.post(args.server,
-                                                data=json.dumps(buffer_data),
+                                                json=buffer_data,
                                                 timeout=0.5)
                         if buffer_status.status_code == 200:
-                            buffer_data = {}
-                    print(json.dumps(m1_data))
+                            print("buffer dump: {}".format(json.dumps(buffer_data,)))
+                            buffer_data = []
                     post_status = requests.post(args.server,
-                                        data=json.dumps(m1_data),
+                                        json=m1_data,
                                         timeout=0.5)
+                    print("json dump: {}".format(json.dumps(m1_data)))
                     print("post_status {}".format(post_status.status_code))
                     # Checks if Post requests succeeded,
                     # if not, set update interval to 0 and
                     # increase resend counter  
                     # If resend counter is 10, dumps dicitonary to data.json
                     if args.server != "" and post_status.status_code == 200:
-                        m1_data = {time.time():{"total": [0], "regions":{}}}
-                        resend_counter = SEND_INTERVAL
+                        m1_data = [time.time(),{}]
+                        # resend_counter = SEND_INTERVAL
                     else:
-                        buffer_data.update(m1_data)
-                        resend_counter = 0
-                        m1_data = {time.time():{"total": [0], "regions":{}}}
+                        buffer_data.append(m1_data)
+                        # resend_counter = 0
+                        m1_data = [time.time(),{}]
                     # else:
                     #     with open(BUFFER_FILE, 'w+', encoding='utf-8') as f:
                     #         temp = json.load(f)
@@ -236,18 +237,16 @@ def detect(args):
                     #         m1_data = {time.time():{"total": [0], "regions":{}}}
                     #         resend_counter = SEND_INTERVAL
                     #         BUFFERED = True
-
+                frame_data = {}
                 key = cv2.waitKey(100)
                 if key == ord('q'):
                     cap.stop()
                     cv2.destroyAllWindows()
-                    # printCounts(total,region_count)
                     break
             else:
                 if timeout_clock != 0 and time.time()-timeout_clock>TIME_OUT:
                     cap.stop()
                     cv2.destroyAllWindows()
-                    # printCounts(total,region_count)
                     break
                 else:
                     timeout_clock = time.time()
