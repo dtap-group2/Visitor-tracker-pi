@@ -15,24 +15,24 @@ Base requirements:
  Installation guides are taken from here: https://www.qengineering.eu/install-opencv-lite-on-raspberry-pi.html
 
 Instal requirements on the Pi:
-    $ sudo apt-get update
-    $ sudo apt-get upgrade
-    $ sudo apt-get install build-essential cmake git pkg-config
-    $ sudo apt-get install python3-dev python3-numpy
-    $ sudo apt-get install python-dev  python-numpy
-    $ sudo apt-get install libjpeg-dev libpng-dev
-    $ sudo apt-get install libavcodec-dev libavformat-dev
-    $ sudo apt-get install libswscale-dev libdc1394-22-dev
-    $ sudo apt-get install libv4l-dev v4l-utils
-    $ sudo apt-get install libgtk2.0-dev libcanberra-gtk* libgtk-3-dev
-    $ sudo apt-get install libtbb2 libtbb-dev
+    $ sudo apt-get update \
+    $ sudo apt-get upgrade \
+    $ sudo apt-get install build-essential cmake git pkg-config \
+    $ sudo apt-get install python3-dev python3-numpy \
+    $ sudo apt-get install python-dev  python-numpy \
+    $ sudo apt-get install libjpeg-dev libpng-dev \
+    $ sudo apt-get install libavcodec-dev libavformat-dev \
+    $ sudo apt-get install libswscale-dev libdc1394-22-dev \
+    $ sudo apt-get install libv4l-dev v4l-utils \
+    $ sudo apt-get install libgtk2.0-dev libcanberra-gtk* libgtk-3-dev \
+    $ sudo apt-get install libtbb2 libtbb-dev \
 
 Download OpenCV:
-    $ cd ~
-    $ git clone --depth=1 https://github.com/opencv/opencv.git
-    $ cd opencv
-    $ mkdir build
-    $ cd build
+    $ cd ~ \
+    $ git clone --depth=1 https://github.com/opencv/opencv.git \
+    $ cd opencv \
+    $ mkdir build \
+    $ cd build \
 
 Configure the build
     $ cmake -D CMAKE_BUILD_TYPE=RELEASE \
