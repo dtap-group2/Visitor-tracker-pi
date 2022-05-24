@@ -1,27 +1,38 @@
-import json
-import cv2
-import numpy as np
-import json
-import datetime
-import requests
+from params import *
+from detect import detect
+from argparse import ArgumentParser
 
+def build_argparser():
+    parser = ArgumentParser()
+    parser.add_argument("-m", "--model", required=False, type=str,
+                        default=MODEL_PATH,
+                        help="Path to an xml file with a trained model.")
+    
+    parser.add_argument("-i", "--input", required=False,
+                        default=DATA_PATH,
+                        help="Default 0 taking camra input"
+                             "Path to image or video file")
 
-from openvino.inference_engine import IECore
+    parser.add_argument("-d", "--device", required=False,type=str, 
+                        default=DEVICE_NAME,
+                        help="Processor type"
+                             "MYRIAD for Intel Neural Stick "
+                             "CPU for x64 cpu (used for testing on local machines)")
 
-SHOW_VIDEO = False
+    parser.add_argument("-c", "--confidence", required=False,type=float, 
+                        default=CONFIDENCE,
+                        help="Probability threshold for detections filtering")
 
-# Set to MYRIAD on the Pi, CPU for regular pc testing
-DEVICE_NAME = "MYRIAD"
-SERVER_URL = "http://localhost:3000/tracker/update-data"
-
-# If the detection is at least this sure it's a person, increase the counter
-CONFIDENCE = 0.35
-
-MODEL_LOCATION = "../models/person-detection-0200.xml"
-DATA_PATH = 0
+    parser.add_argument("-o", "--output", type=bool, default=SHOW_VIDEO,
+                        help="Enable video output")
+    parser.add_argument("-s","--server",required=False,type=str,
+                        default=SERVER_URL,
+                        help="Server address to send data to")
+    return parser
 
 
 def main():
+<<<<<<< HEAD
     ie = IECore()
 
     net = ie.read_network(model=MODEL_LOCATION)
@@ -103,5 +114,10 @@ def main():
             break
 
 
+=======
+    args = build_argparser().parse_args()
+    detect(args)
+    
+>>>>>>> develop
 if __name__ == "__main__":
     main()
