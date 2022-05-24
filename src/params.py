@@ -10,7 +10,7 @@ from os.path import abspath
 
 # # Set to MYRIAD on the Pi, CPU for regular pc testing
 # DEVICE_NAME = "MYRIAD"
-# # SERVER_URL = "http://localhost:3000/tracker/update-data"
+# # SERVER_URL = "http://localhost:3000/tracker/testjson"
 
 # # If the detection is at least this sure it's a person, increase the counter
 # CONFIDENCE = 0.35
