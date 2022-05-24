@@ -15,31 +15,19 @@ Base requirements:
  Installation guides are taken from here: https://www.qengineering.eu/install-opencv-lite-on-raspberry-pi.html
 
 Instal requirements on the Pi:
-    # check for updates
     $ sudo apt-get update
     $ sudo apt-get upgrade
-    # general tools (35.8 MB)
     $ sudo apt-get install build-essential cmake git pkg-config
-    # if you want to get OpenCV working in python or python3 (208 MB)
     $ sudo apt-get install python3-dev python3-numpy
-    # The latest Debian 11, Bullseye don't support python2 full
-    # don't try to install if you're having a Raspberry Bullseye OS
     $ sudo apt-get install python-dev  python-numpy
-    # image formats (0.9 MB)
     $ sudo apt-get install libjpeg-dev libpng-dev
-    # video formats (32.1 MB)
     $ sudo apt-get install libavcodec-dev libavformat-dev
     $ sudo apt-get install libswscale-dev libdc1394-22-dev
-    # video back engine (0.6 MB)
     $ sudo apt-get install libv4l-dev v4l-utils
-    # the GTK+2 GUI (175 MB)
     $ sudo apt-get install libgtk2.0-dev libcanberra-gtk* libgtk-3-dev
-    # parallel framework (2.7 MB)
-    # don't install if your having a 1 core CPU (like RPi zero)
     $ sudo apt-get install libtbb2 libtbb-dev
 
 Download OpenCV:
-    # download OpenCV (you get always the latest version)
     $ cd ~
     $ git clone --depth=1 https://github.com/opencv/opencv.git
     $ cd opencv
