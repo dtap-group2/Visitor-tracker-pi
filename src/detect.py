@@ -18,16 +18,6 @@ BOUNDARIES = {"Bound 1": [(0.06606606606606606, 0.9579158316633266),
                         (0.5495495495495496, 0.6452905811623246),
                         (0.7762762762762763, 0.7294589178356713)]}
 
-# Structure of m1_data:
-#   m1_data = {
-#              "string of utc time in seconds":
-#                 {
-#                   "Boundary name 1": count1,
-#                   "Boundary name 2": count2,
-#                   ...
-#                  }
-#              }
-
 class Camera():
     def __init__(self, source):
         
@@ -60,7 +50,6 @@ class Camera():
         self.thread.join()
 
 def checkRegions(point: tuple, frame_data: dict, BOUNDARIES: dict):
-    # region_count = frame_data[next(iter(frame_data))]
     for name, coord in BOUNDARIES.items():
         if (is_inside(points =coord,p=point)):
             if name not in frame_data.keys():
@@ -78,7 +67,6 @@ def detect(args):
     N, C, H, W = net.input_info[input_name].tensor_desc.dims
     
     cap = Camera(args.input)
-    # cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 
     # Frame duration in seconds
     FRAME_DURATION = 1
@@ -139,11 +127,8 @@ def detect(args):
                 np.set_printoptions(threshold=np.inf) 
                 datarows = datarows[~np.all(datarows == 0, axis=1)]
 
-                count = 0
                 for row in datarows:
                     if row[2] > args.confidence:
-                        count += 1
-                        # print(row)
 
                         #These coordinates are NORMALIZED from 0 to 1.0
                         top_left_x_f = row[3]
@@ -176,11 +161,7 @@ def detect(args):
                                         lineType=cv2.LINE_AA)
                 if args.output:
                     cv2.imshow("Frame", frame)
-                    # print("{} - {}"
-                    #     .format(m1_data["total"],
-                    #             str(datetime.now().isoformat())))
-                # Send data to server
-                # print("here: {}".format(frame_data.values()))
+
                 temp = m1_data[1]
                 for name, value in frame_data.items():
                     if name in temp.keys():
@@ -195,15 +176,7 @@ def detect(args):
                         temp[name] = max(count,)
                     for name, count in temp.items():
                         m1_data[1][name] = count
-                    # If there is buffered data in data.json, try to send it
-                    # if it succeeded, wipe data.json
-                    # if BUFFERED:
-                    #     with open(BUFFER_FILE, 'w+', encoding='utf-8') as f:
-                    #         buffer_status = requests.post(args.server,
-                    #                             json=json.dumps(json.load(f)))
-                    #         if buffer_status.status_code == 200:
-                    #             f.truncate(0)
-                    #             BUFFERED = False
+
                     if len(buffer_data) > 0:
                         buffer_status = requests.post(args.server,
                                                 json=buffer_data,
@@ -222,21 +195,10 @@ def detect(args):
                     # If resend counter is 10, dumps dicitonary to data.json
                     if args.server != "" and post_status.status_code == 200:
                         m1_data = [time.time(),{}]
-                        # resend_counter = SEND_INTERVAL
                     else:
                         buffer_data.append(m1_data)
-                        # resend_counter = 0
                         m1_data = [time.time(),{}]
-                    # else:
-                    #     with open(BUFFER_FILE, 'w+', encoding='utf-8') as f:
-                    #         temp = json.load(f)
-                    #         print(type(temp))
-                    #         temp.update(m1_data)
-                    #         json.dump(temp, f)
-                            
-                    #         m1_data = {time.time():{"total": [0], "regions":{}}}
-                    #         resend_counter = SEND_INTERVAL
-                    #         BUFFERED = True
+                        
                 frame_data = {}
                 key = cv2.waitKey(100)
                 if key == ord('q'):
