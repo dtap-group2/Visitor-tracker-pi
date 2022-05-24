@@ -15,6 +15,7 @@ Base requirements:
  Installation guides are taken from here: https://www.qengineering.eu/install-opencv-lite-on-raspberry-pi.html
 
 Instal requirements on the Pi:
+
     $ sudo apt-get update \
     $ sudo apt-get upgrade \
     $ sudo apt-get install build-essential cmake git pkg-config \
@@ -28,13 +29,15 @@ Instal requirements on the Pi:
     $ sudo apt-get install libtbb2 libtbb-dev \
 
 Download OpenCV:
+
     $ cd ~ \
     $ git clone --depth=1 https://github.com/opencv/opencv.git \
     $ cd opencv \
     $ mkdir build \
     $ cd build \
 
-Configure the build
+Configure the build:
+
     $ cmake -D CMAKE_BUILD_TYPE=RELEASE \
     -D CMAKE_INSTALL_PREFIX=/usr/local \
     -D ENABLE_NEON=ON \
@@ -96,10 +99,12 @@ Configure the build
     -D INSTALL_PYTHON_EXAMPLES=OFF \
     -D PYTHON3_PACKAGES_PATH=/usr/lib/python3/dist-package ..
 
-Compile the code
+Compile the code:
+
     $ make -j$(nproc)
 
 Install compiled files:
+
     $ sudo make install
     $ sudo ldconfig
     $ sudo apt-get update
